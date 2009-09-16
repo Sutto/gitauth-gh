@@ -67,7 +67,7 @@ class GitHubApi
     end
     
     def private?
-      !!@attributes[:private]
+      !!@attributes.private
     end
     
     def public?

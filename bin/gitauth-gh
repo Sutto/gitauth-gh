@@ -6,10 +6,8 @@ require Pathname.new(__FILE__).dirname.dirname.join("lib", "gitauth", "gh_mirror
 
 GitAuth::Application.processing(ARGV) do |a|
 
-  a.option :user,    "The user to mirror, defaults to the result of `git config --global github.user`"
-  a.option :token,   "The token for said user, defaults to the result of `git config --global github.token`"
-  a.add    "mirror", "Automatically mirrors the specific users repositories" do |options|
-    GitAuth::GitHubMirror.run(options)
-  end
+  a.option      :user,   "The user to mirror, defaults to the result of `git config --global github.user`"
+  a.option      :token,  "The token for said user, defaults to the result of `git config --global github.token`"
+  a.controller! :mirror, "Automatically mirrors the specific users repositories", :skip_path => true
 
 end

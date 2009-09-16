@@ -11,13 +11,15 @@ module GitAuth
     
     Project = Struct.new(:name, :github_clone_url, :repository)
     
+    VERSION = [0, 0, 1, 0]
+    
     def initialize(username, token)
       @api = GitHubApi.new(username, token)
     end
     
     def projects
       @projects ||= @api.repositories.map do |repository|
-        local_repo = GitAuth::Repo.get(name)
+        local_repo = GitAuth::Repo.get(repository.name)
         Project.new(repository.name, github_url_for_repo(repository), local_repo)
       end
     end
@@ -57,16 +59,21 @@ module GitAuth
     class << self
       
       def run(options = {})
-        options = Marvin::Nash.new(options)
+        options = GitAuth::Nash.new(options)
         options.user  = `git config --global github.user`.strip  unless options.user?
         options.token = `git config --global github.token`.strip unless options.token?
         logger.info "Preparing to run GitHub mirror for #{options.user}"
         mirror = self.new(options.user, options.token)
-        mirror.mirror!
+        mirror.mirror_all
       rescue Exception => e
-        GitAuth::ExceptionTracker.log(e)
+        logger.fatal "Got Exception: #{e.class.name} - #{e.message}"
+        e.backtrace.each { |l| logger.fatal "--> #{l}" }
       end
       
+      def version(include_path = false)
+        VERSION[0, (include_path ? 4 : 3)].join(".")
+      end
+            
     end
     
     protected
@@ -82,3 +89,5 @@ module GitAuth
     
   end
 end
+
+GitAuth::Loader.register_controller :mirror, GitAuth::GitHubMirror
