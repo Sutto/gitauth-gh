@@ -8,6 +8,8 @@ class GitHubApi
   
   class Error < StandardError; end
   
+  class SSHPublicKey < Struct.new(:name, :id, :key); end
+  
   base_uri 'https://github.com'
   
   attr_accessor :user, :api_key
@@ -36,6 +38,12 @@ class GitHubApi
     hash_get(results, "repository")
   end
   
+  def keys
+    keys = hash_get(get("/user/keys"), "public_keys")
+    return false if keys.nil?
+    keys.map { |k| SSHPublicKey.new(k["title"], k["id"], k["key"]) }
+  end
+  
   def repository(name, user = @user)
     results = get("repos/show/#{user}/#{name}")
     repo = hash_get(results, "repository")
@@ -48,8 +56,6 @@ class GitHubApi
   end
   
   class Repository
-    
-    class SSHPublicKey < Struct.new(:name, :id); end
     
     attr_accessor :name, :api, :attributes, :owner
     
@@ -121,7 +127,7 @@ class GitHubApi
     def keys
       keys = api.hash_get(api.get("repos/keys/#{@name}"), "public_keys")
       return false if keys.nil?
-      keys.map { |k| SSHPublicKey.new(k["title"], k["id"]) }
+      keys.map { |k| SSHPublicKey.new(k["title"], k["id"], k["key"]) }
     end
     
     def add_key(title, key)
@@ -131,7 +137,7 @@ class GitHubApi
       })
       keys = api.hash_get(result, "public_keys")
       return false if keys.nil?
-      keys.map { |k| SSHPublicKey.new(k["title"], k["id"]) }
+      keys.map { |k| SSHPublicKey.new(k["title"], k["id"], k["key"]) }
     end
     
     def remove_key(key_id)
@@ -145,7 +151,7 @@ class GitHubApi
     
   end
   
-  # Methods
+  # Helper Methods
   
   def get(path, opts = {})
     self.class.get(full_path_for(path), :query => with_auth(opts))

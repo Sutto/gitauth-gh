@@ -1,4 +1,5 @@
 require 'gitauth'
+require 'digest/sha2'
 
 dir = Pathname.new(__FILE__).dirname.dirname
 $:.unshift(dir) unless $:.include?(dir)
@@ -9,9 +10,9 @@ module GitAuth
   class GitHubMirror
     include GitAuth::Loggable
     
-    Project = Struct.new(:name, :github_clone_url, :repository)
+    Project = Struct.new(:name, :github_clone_url, :repository, :github)
     
-    VERSION = [0, 0, 2, 0]
+    VERSION = [0, 0, 3, 0]
     
     def initialize(username, token)
       @api = GitHubApi.new(username, token)
@@ -20,7 +21,7 @@ module GitAuth
     def projects
       @projects ||= @api.repositories.map do |repository|
         local_repo = GitAuth::Repo.get(repository.name)
-        Project.new(repository.name, github_url_for_repo(repository), local_repo)
+        Project.new(repository.name, github_url_for_repo(repository), local_repo, repository)
       end
     end
     
@@ -56,6 +57,26 @@ module GitAuth
       end
     end
     
+    def mirror_deploy_keys(p)
+      if p.github.private?
+        p.github.keys.each do |key|
+          u = user_for_key(key)
+          p.repository.readable_by(u) 
+        end
+      end
+    end
+    
+    def mirror_user_keys
+      users = []
+      @api.keys.each { |key| users << user_for_key(key) }
+      users.compact!
+      projects.each do |project|
+        users.each do |user|
+          project.repository.readable_by(user)
+        end
+      end
+    end
+    
     class << self
       
       def run(options = {})
@@ -64,7 +85,10 @@ module GitAuth
         options.token = `git config --global github.token`.strip unless options.token?
         logger.info "Preparing to run GitHub mirror for #{options.user}"
         mirror = self.new(options.user, options.token)
+        logger.info "Mirroring all repositories"
         mirror.mirror_all
+        logger.info "Mirroring user keys"
+        mirror.mirror_user_keys
       rescue Exception => e
         logger.fatal "Got Exception: #{e.class.name} - #{e.message}"
         e.backtrace.each { |l| logger.fatal "--> #{l}" }
@@ -85,6 +109,19 @@ module GitAuth
     
     def mirrored?(repo)
       repo.repository.present?
+    end
+    
+    def user_for_key(k)
+      name = "gh-sync-#{Digest::SHA256.hexdigest(k.key)[0, 6]}"
+      if u = GitAuth::User.get(name)
+        u
+      else
+        if GitAuth::User.create(name, false, k.key)
+          GitAuth::User.get(name)
+        else
+          raise "Unable to create user for key '#{k.key}'"
+        end
+      end
     end
     
   end
