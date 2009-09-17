@@ -12,7 +12,7 @@ module GitAuth
     
     Project = Struct.new(:name, :github_clone_url, :repository, :github)
     
-    VERSION = [0, 0, 3, 1]
+    VERSION = [0, 0, 3, 2]
     
     def initialize(username, token)
       @api = GitHubApi.new(username, token)
@@ -88,7 +88,7 @@ module GitAuth
           project.repository.readable_by(user)
         end
       end
-      GitAuth::Repo.save
+      GitAuth::Repo.save!
     end
     
     class << self
