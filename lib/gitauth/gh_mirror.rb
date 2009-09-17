@@ -12,7 +12,7 @@ module GitAuth
     
     Project = Struct.new(:name, :github_clone_url, :repository, :github)
     
-    VERSION = [0, 0, 3, 0]
+    VERSION = [0, 0, 3, 1]
     
     def initialize(username, token)
       @api = GitHubApi.new(username, token)
@@ -83,7 +83,7 @@ module GitAuth
     def update_public_project_authentication
       users = GitAuth::User.all.select { |u| u.name =~ /^github-/i }
       projects.each do |project|
-        next unless project.repository.public?
+        next unless project.github.public?
         users.each do |user|
           project.repository.readable_by(user)
         end
