@@ -27,6 +27,7 @@ module GitAuth
     
     def mirror!(p)
       mirrored?(p) ? update!(p) : clone!(p) 
+      mirror_deploy_keys(p)
     end
     
     def update!(p)
@@ -64,6 +65,7 @@ module GitAuth
           p.repository.readable_by(u) 
         end
       end
+      GitAuth::Repo.save!
     end
     
     def mirror_user_keys
@@ -75,6 +77,18 @@ module GitAuth
           project.repository.readable_by(user)
         end
       end
+      GitAuth::Repo.save!
+    end
+    
+    def update_public_project_authentication
+      users = GitAuth::User.all.select { |u| u.name =~ /^github-/i }
+      projects.each do |project|
+        next unless project.repository.public?
+        users.each do |user|
+          project.repository.readable_by(user)
+        end
+      end
+      GitAuth::Repo.save
     end
     
     class << self
@@ -89,6 +103,8 @@ module GitAuth
         mirror.mirror_all
         logger.info "Mirroring user keys"
         mirror.mirror_user_keys
+        logger.info "Updating key access to public repositories"
+        mirror.update_public_project_authentication
       rescue Exception => e
         logger.fatal "Got Exception: #{e.class.name} - #{e.message}"
         e.backtrace.each { |l| logger.fatal "--> #{l}" }
@@ -112,7 +128,7 @@ module GitAuth
     end
     
     def user_for_key(k)
-      name = "gh-sync-#{Digest::SHA256.hexdigest(k.key)[0, 6]}"
+      name = "github-#{Digest::SHA256.hexdigest(k.key)[0, 8]}"
       if u = GitAuth::User.get(name)
         u
       else
