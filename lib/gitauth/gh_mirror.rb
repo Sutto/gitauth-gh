@@ -11,7 +11,7 @@ module GitAuth
     
     Project = Struct.new(:name, :github_clone_url, :repository)
     
-    VERSION = [0, 0, 1, 0]
+    VERSION = [0, 0, 2, 0]
     
     def initialize(username, token)
       @api = GitHubApi.new(username, token)
@@ -31,7 +31,7 @@ module GitAuth
     def update!(p)
       return unless p.repository
       Dir.chdir(p.repository.real_path) do
-        GitAuth.run "git pull origin master --force"
+        GitAuth.run "git fetch origin --force"
       end
     end
     
