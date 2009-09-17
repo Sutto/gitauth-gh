@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
+  
   s.name = %q{gitauth-gh}
   s.version = "0.0.3.0"
 
